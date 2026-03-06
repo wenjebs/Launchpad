@@ -50,7 +50,7 @@ output/top10.json + stdout table
 
 ## Cycle detection
 
-**Algorithm**: SCC-pruned bounded depth-first search, anchored at WETH.
+**Algorithm**: SCC-pruned bounded depth-first search
 
 ### Phase 1 — Strongly Connected Components (Tarjan's)
 
