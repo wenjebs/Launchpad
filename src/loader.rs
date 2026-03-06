@@ -31,7 +31,9 @@ pub fn load_pools(path: &Path) -> Vec<Pool> {
         let r0 = to_raw(&rp.reserve0, dec0);
         let r1 = to_raw(&rp.reserve1, dec1);
 
-        if r0 <= 0.0 || r1 <= 0.0 {
+        let r0_human = parse_decimal(&rp.reserve0);
+        let r1_human = parse_decimal(&rp.reserve1);
+        if r0 <= 0.0 || r1 <= 0.0 || r0_human < 0.01 || r1_human < 0.01 {
             continue;
         }
 

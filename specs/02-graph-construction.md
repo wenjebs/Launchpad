@@ -114,10 +114,14 @@ Consider filtering pools to reduce graph size:
 
 | Filter | Rationale |
 |--------|-----------|
-| Min liquidity threshold | Skip dust pools with tiny reserves |
+| `reserveUSD < $1,000` | Skip low-liquidity pools |
+| Either raw reserve == 0 | Invalid pool, skip |
+| Either reserve (human-readable) < 0.01 | Catches drained pools with stale `reserveUSD` (see note below) |
 | Known stablecoins / major tokens | Focus on high-liquidity paths |
 | Remove self-loops | Same token on both sides is invalid |
 | Deduplicate by pair | Keep only the highest-liquidity pool per pair (optional) |
+
+> **Note: stale `reserveUSD` problem.** The Uniswap subgraph does not always update `reserveUSD` after a pool is drained. A pool with one side at 0.00001 USDT can still show `reserveUSD = $56,992` from when it was healthy. The AMM formula then computes an absurd spot price (e.g. 4 billion USDT per token), making it appear as the most profitable arbitrage leg in every detected cycle. Filtering on raw reserve values directly — rather than relying solely on `reserveUSD` — eliminates these phantom opportunities.
 
 ## Petgraph Integration
 
