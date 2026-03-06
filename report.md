@@ -64,6 +64,8 @@ All top cycles route through token `0xd233d1f6fd...`. These are phantom profits 
 
 **Finding 2 — cross-pool price inconsistency**: Adding `--anchor` support and running experiments across all five hub tokens revealed a deeper data quality issue. Token `0xd233d1f6fd...` (9 decimals) is priced at **$1.07** in the DAI/0xd233 pool but **$5.71** in the WETH/0xd233 pool — a 5.4× discrepancy. Both pools have healthy reserves on both sides and pass all filters. The difference is that the two pools were captured at different block times from the subgraph, so their prices are inconsistent. The AMM formula correctly computes a 653% round-trip profit given these reserves, but no such profit exists on a live chain. This type of phantom cannot be caught by reserve-size filters; it would require a cross-pool price consistency check (e.g. reject any token whose implied price varies more than 2× across its pools).
 
+**Finding 4 — profit cliff between rank 2 and rank 3**: The top-10 results show a sharp drop-off after rank 2 ($93k → $50k → $64 → ...). Ranks 1 and 2 both route through `0xd233d1f6fd...` and inherit the full 5.4× phantom price discrepancy. Rank 3 onward routes through different tokens with no stale price mismatch, so profits reflect genuine (tiny) reserve imbalances in the snapshot — in the $15–$65 range. The cliff is a direct fingerprint of the stale snapshot: exactly the cycles that exploit `0xd233...` are vastly inflated, and everything else is negligible.
+
 **Finding 3 — optimizer decimal mismatch bug**: The original golden section search used `min(reserve_in across all edges)` as the upper bound. Since reserves are stored in raw units (each multiplied by its token's decimals), comparing them across different tokens is meaningless. For WETH→DAI→0xd233→WETH, the 0xd233 side has raw reserve 679,288 × 10⁹ ≈ 6.8×10¹⁴, which treated as WETH (18 decimals) = 0.00034 WETH — 58,885× below the actual optimal of ~20 WETH. This bug made WETH anchor appear to produce small realistic profits ($1,911) while stablecoin anchors surfaced $100K+ phantoms. The asymmetry was entirely caused by the mismatch, not real differences between anchors. Fixed by using only the first edge's `reserve_in` as the search bound, which is always in the starting token's own units.
 
 ### Suggested Trade Size
@@ -127,7 +129,20 @@ The `ArbitrageValidator` contract (`contracts/src/ArbitrageValidator.sol`):
 - Non-cyclic path revert
 - Profitable 3-hop cycle
 
-**Snapshot validation**: All 10 cycles from Part 1 validated as **PROFITABLE** on Tenderly Virtual TestNet using mock pools deployed with `v2pools.json` reserve data. The Solidity `uint256` math matches the Rust `f64` results exactly.
+**Snapshot validation**: All 10 cycles from Part 1 validated as **PROFITABLE** on local Hardhat/Anvil node using mock pools deployed with `v2pools.json` reserve data. The Solidity `uint256` math matches the Rust `f64` results exactly.
+
+| Rank | Status | AmountIn (raw) | ActualOut (raw) | Profit (raw) | Hops | Profit USD |
+|------|--------|---------------|-----------------|--------------|------|------------|
+| 1 | PROFITABLE | 134,028,387 | 367,324,889 | 233,296,502 | 4 | $93,318.60 |
+| 2 | PROFITABLE | 73,060,640 | 198,047,213 | 124,986,573 | 4 | $49,994.63 |
+| 3 | PROFITABLE | 2,831,294 | 2,991,415 | 160,121 | 4 | $64.05 |
+| 4 | PROFITABLE | 484,476 | 604,461 | 119,985 | 4 | $47.99 |
+| 5 | PROFITABLE | 1,166,126 | 1,280,608 | 114,482 | 4 | $45.79 |
+| 6 | PROFITABLE | 655,681 | 701,872 | 46,191 | 4 | $18.48 |
+| 7 | PROFITABLE | 340,289 | 381,783 | 41,494 | 4 | $16.60 |
+| 8 | PROFITABLE | 358,744 | 397,848 | 39,104 | 4 | $15.64 |
+| 9 | PROFITABLE | 350,160 | 389,010 | 38,850 | 4 | $15.54 |
+| 10 | PROFITABLE | 1,116,463 | 1,153,982 | 37,519 | 4 | $15.01 |
 
 ### How to Run
 
@@ -135,7 +150,7 @@ The `ArbitrageValidator` contract (`contracts/src/ArbitrageValidator.sol`):
 # Part 1: Detect cycles (default anchor: WETH)
 cargo run --release -- data/v2pools.json
 
-# Part 1: Detect cycles with a different anchor token
+# Part 1: Detect cycles with a different anchor token 
 cargo run --release -- data/v2pools.json --anchor USDT
 
 # Part 2: Compile contracts
@@ -195,12 +210,15 @@ report.md                           # This report
 
 ### How It Helped
 
-- **Architecture and planning**: Produced the full implementation plan (file structure, algorithm choices, data flow) from the challenge spec before any code was written
+Claude Code drove the entire project end-to-end. The human role was steering — providing the spec, answering clarifying questions, and making judgment calls on direction. Every implementation artifact was produced by the AI.
+
+- **Brainstorming and architecture**: Before any code was written, produced the full implementation plan — file structure, algorithm choices, data flow — by reasoning through the challenge spec
 - **Code generation**: Wrote all Rust and Solidity source files, including the AMM math, DFS cycle detection, golden section optimizer, graph construction, smart contract, mock contracts, and test harness
 - **Automated validation**: Spawned 5 parallel sub-agents to review the codebase for correctness — checking AMM math against the Uniswap V2 formula, verifying graph edge counts, auditing DFS backtracking logic, and validating output plausibility
 - **Bug detection and fixing**: The review agents identified 2 critical bugs (wrong USDT address, optimizer convergence threshold too small in absolute units) and 1 medium bug, all fixed before final output
 - **Toolchain setup**: Configured the Solidity compilation pipeline (solc via Node.js), Hardhat local node, Tenderly Virtual TestNet integration, and bun-based script runner
 - **Iterative debugging**: When the Tenderly API key didn't work as expected, adapted the approach to use the dashboard-created RPC URL instead
+- **Version control**: Authored all commits and pushed all branches
 
 ### Problems and Limitations Encountered
 
@@ -220,4 +238,4 @@ report.md                           # This report
 
 8. **Cross-pool price inconsistency not filtered**: The dust-reserve filter catches drained pools (near-zero reserves on one side) but not pools with healthy reserves that were snapshotted at different block times. Token `0xd233d1f6fd...` has a 5.4× price difference between its DAI pool and its WETH pool purely because of snapshot timing. Both pools pass every filter, but any cycle through them produces a phantom profit. Filtering this out without external price data would require comparing implied prices across pools for the same token and rejecting outliers.
 
-9. **Domain unfamiliarity**: I have no prior background in crypto, DeFi, or Web3. Concepts like AMM mechanics, liquidity pools, reserve ratios, and on-chain validation were entirely new. Understanding what the system was actually doing — not just implementing it — was genuinely difficult. I largely trusted the AI's explanations of the domain and verified correctness through tests and output plausibility rather than independent domain knowledge.
+9. **Domain unfamiliarity and blind steering**: I have no prior background in crypto, DeFi, or Web3. Concepts like AMM mechanics, liquidity pools, reserve ratios, and on-chain validation were entirely new. Understanding what the system was actually doing — not just implementing it — was genuinely difficult. I largely trusted the AI's explanations and verified correctness through tests and output plausibility rather than independent domain knowledge. This made steering unreliable: when the AI proposed an approach, I had no independent basis to evaluate it. I could ask clarifying questions, but I couldn't tell if the questions themselves were the right ones. The human retains control in theory, but in an unfamiliar domain the AI's framing shapes every decision.
