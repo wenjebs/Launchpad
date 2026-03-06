@@ -1,0 +1,102 @@
+[
+  {
+    "rank": 1,
+    "profit_usd": 15751.45,
+    "optimal_input_raw": 5,
+    "profit_raw": 15751454646,
+    "start_token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "hops": 4,
+    "path_tokens": ["0xdac17f958d2ee523a2206206994597c13d831ec7", "0xd233d1f6fd11640081abb8db125f722b5dc729dc", "0x514910771af9ca656af840dff83e8264ecf986ca", "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984", "0xdac17f958d2ee523a2206206994597c13d831ec7"],
+    "path_pools": ["0x50b6071561f068963bcfe2b341126cd6accafafb", "0x81a8bd7f2b29cee72aae18da9b4637acf4bc125a", "0x9b2662dc8b80b0fe79310ad316b943cb5bb15e8b", "0x5ac13261c181a9c3938bfe1b649e65d10f98566b"]
+  },
+  {
+    "rank": 2,
+    "profit_usd": 10607.63,
+    "optimal_input_raw": 5,
+    "profit_raw": 10607629770,
+    "start_token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "hops": 3,
+    "path_tokens": ["0xdac17f958d2ee523a2206206994597c13d831ec7", "0xd233d1f6fd11640081abb8db125f722b5dc729dc", "0x6b175474e89094c44da98b954eedeac495271d0f", "0xdac17f958d2ee523a2206206994597c13d831ec7"],
+    "path_pools": ["0x50b6071561f068963bcfe2b341126cd6accafafb", "0x1d1126cc2c77384448913b41fbf308563aae1f16", "0xb20bd5d04be54f870d5c0d3ca85d82b34b836405"]
+  },
+  {
+    "rank": 3,
+    "profit_usd": 10596.31,
+    "optimal_input_raw": 5,
+    "profit_raw": 10596309607,
+    "start_token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "hops": 4,
+    "path_tokens": ["0xdac17f958d2ee523a2206206994597c13d831ec7", "0xd233d1f6fd11640081abb8db125f722b5dc729dc", "0x6b175474e89094c44da98b954eedeac495271d0f", "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "0xdac17f958d2ee523a2206206994597c13d831ec7"],
+    "path_pools": ["0x50b6071561f068963bcfe2b341126cd6accafafb", "0x1d1126cc2c77384448913b41fbf308563aae1f16", "0xae461ca67b15dc8dc81ce7615e0320da1a9ab8d5", "0x3041cbd36888becc7bbcbc0045e3b1f144466f5f"]
+  },
+  {
+    "rank": 4,
+    "profit_usd": 10413.75,
+    "optimal_input_raw": 5,
+    "profit_raw": 10413752644,
+    "start_token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "hops": 4,
+    "path_tokens": ["0xdac17f958d2ee523a2206206994597c13d831ec7", "0xd233d1f6fd11640081abb8db125f722b5dc729dc", "0x6b175474e89094c44da98b954eedeac495271d0f", "0xeef9f339514298c6a857efcfc1a762af84438dee", "0xdac17f958d2ee523a2206206994597c13d831ec7"],
+    "path_pools": ["0x50b6071561f068963bcfe2b341126cd6accafafb", "0x1d1126cc2c77384448913b41fbf308563aae1f16", "0x9bd82673c50acb4a3b883d61e070a3c8d9b08e10", "0xf6c4e4f339912541d3f8ed99dba64a1372af5e5b"]
+  },
+  {
+    "rank": 5,
+    "profit_usd": 9131.98,
+    "optimal_input_raw": 5,
+    "profit_raw": 9131975900,
+    "start_token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "hops": 4,
+    "path_tokens": ["0xdac17f958d2ee523a2206206994597c13d831ec7", "0xd233d1f6fd11640081abb8db125f722b5dc729dc", "0x6b175474e89094c44da98b954eedeac495271d0f", "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599", "0xdac17f958d2ee523a2206206994597c13d831ec7"],
+    "path_pools": ["0x50b6071561f068963bcfe2b341126cd6accafafb", "0x1d1126cc2c77384448913b41fbf308563aae1f16", "0x231b7589426ffe1b75405526fc32ac09d44364c4", "0x0de0fa91b6dbab8c8503aaa2d1dfa91a192cb149"]
+  },
+  {
+    "rank": 6,
+    "profit_usd": 8337.85,
+    "optimal_input_raw": 5,
+    "profit_raw": 8337853686,
+    "start_token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "hops": 3,
+    "path_tokens": ["0xdac17f958d2ee523a2206206994597c13d831ec7", "0xd233d1f6fd11640081abb8db125f722b5dc729dc", "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "0xdac17f958d2ee523a2206206994597c13d831ec7"],
+    "path_pools": ["0x50b6071561f068963bcfe2b341126cd6accafafb", "0xf6c0428f56f9ca7ed54bd824a4856e92c3a8e401", "0x3041cbd36888becc7bbcbc0045e3b1f144466f5f"]
+  },
+  {
+    "rank": 7,
+    "profit_usd": 8285.39,
+    "optimal_input_raw": 5,
+    "profit_raw": 8285387770,
+    "start_token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "hops": 4,
+    "path_tokens": ["0xdac17f958d2ee523a2206206994597c13d831ec7", "0xd233d1f6fd11640081abb8db125f722b5dc729dc", "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "0x6b175474e89094c44da98b954eedeac495271d0f", "0xdac17f958d2ee523a2206206994597c13d831ec7"],
+    "path_pools": ["0x50b6071561f068963bcfe2b341126cd6accafafb", "0xf6c0428f56f9ca7ed54bd824a4856e92c3a8e401", "0xae461ca67b15dc8dc81ce7615e0320da1a9ab8d5", "0xb20bd5d04be54f870d5c0d3ca85d82b34b836405"]
+  },
+  {
+    "rank": 8,
+    "profit_usd": 8235.10,
+    "optimal_input_raw": 5,
+    "profit_raw": 8235098043,
+    "start_token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "hops": 4,
+    "path_tokens": ["0xdac17f958d2ee523a2206206994597c13d831ec7", "0xd233d1f6fd11640081abb8db125f722b5dc729dc", "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "0x4aa41bc1649c9c3177ed16caaa11482295fc7441", "0xdac17f958d2ee523a2206206994597c13d831ec7"],
+    "path_pools": ["0x50b6071561f068963bcfe2b341126cd6accafafb", "0xf6c0428f56f9ca7ed54bd824a4856e92c3a8e401", "0x803fc05552868c40336482dfdda36c2e13e6d5d6", "0xf8d99cf7046dedcb1dc8cfc309aa96946c9b9db2"]
+  },
+  {
+    "rank": 9,
+    "profit_usd": 8160.75,
+    "optimal_input_raw": 5,
+    "profit_raw": 8160746592,
+    "start_token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "hops": 4,
+    "path_tokens": ["0xdac17f958d2ee523a2206206994597c13d831ec7", "0xd233d1f6fd11640081abb8db125f722b5dc729dc", "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "0x961c8c0b1aad0c0b10a51fef6a867e3091bcef17", "0xdac17f958d2ee523a2206206994597c13d831ec7"],
+    "path_pools": ["0x50b6071561f068963bcfe2b341126cd6accafafb", "0xf6c0428f56f9ca7ed54bd824a4856e92c3a8e401", "0xabd9c284116b2e757e3d4f6e36c5050aead24e0c", "0x76911e11fddb742d75b83c9e1f611f48f19234e4"]
+  },
+  {
+    "rank": 10,
+    "profit_usd": 8148.91,
+    "optimal_input_raw": 5,
+    "profit_raw": 8148914094,
+    "start_token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "hops": 4,
+    "path_tokens": ["0xdac17f958d2ee523a2206206994597c13d831ec7", "0xd233d1f6fd11640081abb8db125f722b5dc729dc", "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "0x4fabb145d64652a948d72533023f6e7a623c7c53", "0xdac17f958d2ee523a2206206994597c13d831ec7"],
+    "path_pools": ["0x50b6071561f068963bcfe2b341126cd6accafafb", "0xf6c0428f56f9ca7ed54bd824a4856e92c3a8e401", "0x524847c615639e76fe7d0fe0b16be8c4eac9cf3c", "0xa0abda1f980e03d7eadb78aed8fc1f2dd0fe83dd"]
+  }
+]
