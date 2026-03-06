@@ -95,7 +95,8 @@ fn compute_sccs(graph: &Graph) -> Vec<usize> {
 }
 
 /// Detect arbitrage cycles using bounded DFS from hub tokens, pruned by SCC membership.
-pub fn detect_cycles(graph: &Graph) -> Vec<Cycle> {
+/// `anchor` is an optional token name (e.g. "USDT") to use as the primary starting hub.
+pub fn detect_cycles(graph: &Graph, anchor: Option<&str>) -> Vec<Cycle> {
     let scc_ids = compute_sccs(graph);
     let n = graph.idx_to_token.len();
 
@@ -123,7 +124,19 @@ pub fn detect_cycles(graph: &Graph) -> Vec<Cycle> {
     let mut seen_sccs: HashSet<usize> = HashSet::new();
     let mut active_hubs: Vec<(usize, usize, &str)> = Vec::new(); // (token_idx, scc_id, name)
 
-    for &(addr, name) in HUB_TOKENS {
+    // Reorder so the chosen anchor comes first
+    let mut ordered_hubs: Vec<(&str, &str)> = HUB_TOKENS.to_vec();
+    if let Some(name) = anchor {
+        if let Some(pos) = ordered_hubs.iter().position(|&(_, n)| n.eq_ignore_ascii_case(name)) {
+            let hub = ordered_hubs.remove(pos);
+            ordered_hubs.insert(0, hub);
+        } else {
+            eprintln!("[Config] Unknown anchor '{}', falling back to WETH", name);
+        }
+    }
+    let anchor_name = ordered_hubs[0].1;
+
+    for &(addr, name) in &ordered_hubs {
         if let Some(&token_idx) = graph.token_to_idx.get(addr) {
             let scc = scc_ids[token_idx];
             let size = scc_sizes.get(&scc).copied().unwrap_or(0);
@@ -132,7 +145,7 @@ pub fn detect_cycles(graph: &Graph) -> Vec<Cycle> {
                 continue;
             }
             if seen_sccs.insert(scc) {
-                let anchor_note = if addr == WETH { " — using as anchor" } else { "" };
+                let anchor_note = if name == anchor_name { " — using as anchor" } else { "" };
                 eprintln!(
                     "[SCC] {} is in SCC #{} ({} tokens){}",
                     name, scc, size, anchor_note

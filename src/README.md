@@ -10,14 +10,19 @@ cargo run --release -- data/v2pools.json
 
 # Or with the compiled binary
 ./target/release/dex-arb-detector data/v2pools.json
+
+# Choose a specific anchor token (default: WETH)
+cargo run --release -- data/v2pools.json --anchor USDT
 ```
+
+Accepted anchor names: `WETH`, `USDT`, `USDC`, `DAI`, `WBTC`. The anchor is the start/end token for all cycle searches. Since all five hub tokens share the same giant SCC, the choice affects which cycles appear in the top 10 but not overall completeness. See the anchor experiments section below.
 
 The data path defaults to `data/v2pools.json` if omitted.
 
 ## Pipeline
 
 ```
-v2pools.json
+v2pools.json  +  --anchor WETH|USDT|USDC|DAI|WBTC
      │
      ▼
 [loader.rs] ── parse JSON, convert reserves, filter reserveUSD < $1K + dust reserves < 0.01
@@ -26,9 +31,9 @@ v2pools.json
 [graph.rs] ── build directed adjacency list (2 edges per pool)
      │
      ▼  4,598 tokens, 10,780 edges
-[detector.rs] ── Tarjan SCC pruning, anchor DFS from WETH, max 4 hops
+[detector.rs] ── Tarjan SCC pruning, anchor DFS from chosen hub, max 4 hops
      │
-     ▼  53,104 candidate cycles
+     ▼  53,104 candidate cycles (WETH) / 28,110 (USDT) / etc.
 [ranker.rs] ── golden section search → optimal input → USD profit
      │
      ▼
@@ -62,10 +67,12 @@ Result on the filtered dataset:
 
 Hub tokens are checked against their SCC:
 - Only one DFS sweep is started per distinct non-trivial SCC
-- WETH anchors the main cluster (4,561 tokens — 99% of the graph)
+- The chosen anchor (default: WETH) starts the main cluster sweep (4,561 tokens — 99% of the graph)
 - Tokens in singleton SCCs are skipped — they provably cannot participate in any cycle
 
 On this dataset all five hub tokens (WETH, USDT, USDC, DAI, WBTC) fall in the same giant SCC, so only **1 DFS sweep** runs instead of 5.
+
+The `--anchor` flag reorders the hub list so the chosen token runs first. Because all hubs share one SCC, the same set of cycles is reachable from any anchor — but the search finds different subsets in the top 10 depending on which paths close back to the anchor token most profitably.
 
 ### Phase 3 — SCC-restricted DFS
 
@@ -95,7 +102,9 @@ amountOut = (amountIn × 997 × reserveOut) / (reserveIn × 1000 + amountIn × 9
 
 Cycle profit = `simulate(edges, amountIn) - amountIn`
 
-Optimal input found via **golden section search** on `[0, 0.5 × min(reserve_in)]` with relative convergence tolerance `max_input × 1e-12`.
+Optimal input found via **golden section search** on `[0, 0.3 × first_edge.reserve_in]` with relative convergence tolerance `max_input × 1e-12`.
+
+The upper bound uses only the **first edge's reserve_in**, which is always in the starting token's own raw units. An earlier version used `min(reserve_in across all edges)`, but that compares raw reserves of tokens with different decimal scales — e.g. an intermediate token with 9 decimals has a much smaller raw reserve than an 18-decimal token, producing a search cap that was up to 60,000× too low for cross-decimal cycles. The fix ensures the optimizer can reach the true optimal input regardless of intermediate token decimals.
 
 ## Output format
 
@@ -116,6 +125,24 @@ Optimal input found via **golden section search** on `[0, 0.5 × min(reserve_in)
 - `path_tokens`: closed cycle — first and last element are the same token
 - `path_pools`: real Uniswap V2 pair contract addresses (used directly by Part 2)
 - `optimal_input_raw`: raw token units (divide by `10^decimals` for human-readable amount)
+
+## Anchor experiments
+
+Running with each of the five hub tokens as anchor produces different cycle counts and top results:
+
+| Anchor | Cycles found | Top profit (post-fix) | Notes |
+|--------|--------------|-----------------------|-------|
+| WETH   | 53,104       | $71,805               | Most cycles; WETH pairs with ~83% of pools |
+| USDT   | 28,110       | $101,246              | 4-hop phantom via 0xd233 token |
+| USDC   | 20,016       | $101,225              | Same phantom, different entry |
+| DAI    | 6,616        | $50,293               | Fewest cycles; DAI has fewer direct pools |
+| WBTC   | 3,916        | $93,319               | Same 0xd233 phantom |
+
+All top results across every anchor route through token `0xd233d1f6fd...` (9 decimals), which is priced at **$1.07** in the DAI pool but **$5.71** in the WETH pool — a 5.4× discrepancy. This is a stale snapshot artifact: the two pools were captured at different block times with different prices. It is not a real arbitrage opportunity.
+
+The dust reserve filter (`< 0.01`) only catches drained pools (near-zero reserves on one side). It does not catch cross-pool price inconsistency where both sides have healthy reserves but the pools were snapshotted at different times. Eliminating these phantom results would require a cross-pool price consistency check — e.g. reject any token whose implied price varies more than 2× across its pools.
+
+WETH previously appeared to show more "realistic" results ($1,911 vs. $100K+) not because it was a better anchor, but because the old optimizer had a decimal-mismatch bug that capped the search too low for cycles passing through low-decimal intermediate tokens.
 
 ## Running tests
 

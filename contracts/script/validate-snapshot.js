@@ -137,16 +137,20 @@ async function main() {
       );
       const profit = actualOut - amountIn;
 
-      // Estimate USD profit (USDT/USDC = 6 decimals)
+      // Estimate USD profit based on start token
       const startToken = cycle.start_token.toLowerCase();
       let profitUsd;
       if (startToken === "0xdac17f958d2ee523a2206206994597c13d831ec7" ||
           startToken === "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48") {
-        profitUsd = Number(profit) / 1e6;
+        profitUsd = Number(profit) / 1e6;                  // USDT/USDC: 6 decimals, ~$1
       } else if (startToken === "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2") {
-        profitUsd = Number(profit) / 1e18 * 2000;
+        profitUsd = Number(profit) / 1e18 * 2000;          // WETH: 18 decimals, ~$2000
+      } else if (startToken === "0x6b175474e89094c44da98b954eedeac495271d0f") {
+        profitUsd = Number(profit) / 1e18;                  // DAI: 18 decimals, ~$1
+      } else if (startToken === "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599") {
+        profitUsd = Number(profit) / 1e8 * 40000;          // WBTC: 8 decimals, ~$40000
       } else {
-        profitUsd = Number(profit) / 1e18;
+        profitUsd = Number(profit) / 1e18;                  // unknown: assume 18 decimals
       }
 
       console.log(

@@ -92,7 +92,7 @@ bun run node              # Terminal 1
 bun run validate:snapshot # Terminal 2
 ```
 
-All 10 Part 1 cycles should show as **PROFITABLE** — the on-chain `uint256` arithmetic matches the off-chain `f64` results exactly.
+All 10 Part 1 cycles should show as **PROFITABLE** — the on-chain `uint256` arithmetic matches the off-chain `f64` results exactly. Note that the top cycles route through token `0xd233d1f6fd...` whose price differs 5× between pools due to stale snapshot data; the profits are confirmed as mathematically correct given those reserves, but would not be realised on a live chain where prices have since converged.
 
 ## Validating with live reserves
 

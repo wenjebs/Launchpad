@@ -16,7 +16,7 @@
 
 **Phase 1 — Strongly Connected Components**: Before any DFS, `compute_sccs()` runs Tarjan's iterative SCC algorithm over all 4,598 tokens. This identifies 16 non-trivial SCCs; the largest contains 4,561 tokens (99% of the graph) and includes all five hub tokens.
 
-**Phase 2 — Anchor selection**: Rather than running one DFS sweep per hub token, the detector runs one sweep per distinct non-trivial SCC containing a hub. Since all five hubs (WETH, USDT, USDC, DAI, WBTC) share the same giant SCC, only **1 DFS sweep** runs instead of 5. WETH is used as the anchor because it appears in 83% of filtered pools.
+**Phase 2 — Anchor selection**: Instead of searching for cycles starting from every token, the detector picks a single fixed start/end point — configurable via `--anchor` (default: WETH). Since WETH appears in 83% of filtered pools, almost every profitable loop in the graph will pass through it. This means only **1 search sweep** is needed instead of one per hub token, while still finding virtually all meaningful cycles. All five hubs share the same giant SCC, so any of them can serve as anchor — the choice affects which cycles surface in the top 10, not overall completeness.
 
 **Phase 3 — SCC-restricted DFS**: During traversal, any neighbor not in the same SCC as the start token is pruned immediately — it provably cannot be part of a cycle through the start node. Combined with the standard constraints below, this eliminates a large fraction of dead-end traversals:
 
@@ -39,7 +39,7 @@ The 997/1000 factor encodes the 0.3% swap fee. Cycle simulation chains this form
 
 ### Ranking Metric
 
-1. **Optimal trade size**: For each cycle, a golden section search finds the input amount that maximizes `output - input` (absolute profit in raw token units). The search uses a relative convergence tolerance (`max_input * 1e-12`) to handle tokens with varying decimal scales.
+1. **Optimal trade size**: For each cycle, a golden section search finds the input amount that maximizes `output - input` (absolute profit in raw token units). The search range is `[0, 0.3 × first_edge.reserve_in]` — using the first edge's reserve (which is in the starting token's own raw units) as the upper bound. The search uses a relative convergence tolerance (`max_input * 1e-12`) to handle tokens with varying decimal scales.
 2. **USD conversion**: Profit is converted to USD using known token decimals and approximate prices (WETH ~ $2,000, stablecoins ~ $1, WBTC ~ $40,000).
 3. **Ranking**: Cycles are sorted by estimated USD profit descending; top 10 are output.
 
@@ -47,24 +47,28 @@ The 997/1000 factor encodes the 0.3% swap fee. Cycle simulation chains this form
 
 | Rank | Profit (USD) | Hops | Starting Token | Path Summary |
 |------|-------------|------|----------------|--------------|
-| 1 | $1,911 | 4 | WETH | WETH → SUSHI → 0x90d7... → 0x6971... → WETH |
-| 2 | $1,148 | 3 | WETH | WETH → 0x86fa... → 0x4d13... → WETH |
-| 3 | $839 | 3 | WETH | WETH → 0xe0e4... → LINK → WETH |
-| 4 | $818 | 4 | WETH | WETH → 0xe0e4... → LINK → 0x990f... → WETH |
-| 5 | $814 | 4 | WETH | WETH → 0xe0e4... → LINK → UNI → WETH |
-| 6 | $717 | 4 | WETH | WETH → 0xe0e4... → LINK → 0x0e8d... → WETH |
-| 7 | $683 | 4 | WETH | WETH → 0xe0e4... → LINK → DAI → WETH |
-| 8 | $682 | 4 | WETH | WETH → 0xe0e4... → LINK → 0x7630... → WETH |
-| 9 | $644 | 4 | WETH | WETH → 0xe0e4... → LINK → 0xed04... → WETH |
-| 10 | $616 | 4 | WETH | WETH → 0xe0e4... → LINK → 0x30bc... → WETH |
+| 1 | $71,805 | 3 | WETH | WETH → DAI → 0xd233... → WETH |
+| 2 | $71,416 | 4 | WETH | WETH → USDT → DAI → 0xd233... → WETH |
+| 3 | $71,413 | 4 | WETH | WETH → USDC → DAI → 0xd233... → WETH |
+| 4 | $70,820 | 4 | WETH | WETH → 0x03ab... → DAI → 0xd233... → WETH |
+| 5 | $70,166 | 3 | WETH | WETH → 0xd46b... → 0xd233... → WETH |
+| 6 | $68,588 | 4 | WETH | WETH → 0xeef9... → DAI → 0xd233... → WETH |
+| 7 | $68,249 | 4 | WETH | WETH → 0xa3be... → DAI → 0xd233... → WETH |
+| 8 | $66,842 | 4 | WETH | WETH → 0x1337... → DAI → 0xd233... → WETH |
+| 9 | $65,930 | 4 | WETH | WETH → WBTC → DAI → 0xd233... → WETH |
+| 10 | $57,787 | 4 | WETH | WETH → 0x15f0... → DAI → 0xd233... → WETH |
 
-All top cycles start and end at WETH, which anchors the single giant SCC. The LINK→WETH path (via pool `0xe0e4...`) appears repeatedly in ranks 3–10, indicating a consistently mispriced route through Chainlink token.
+All top cycles route through token `0xd233d1f6fd...`. These are phantom profits from stale snapshot data — see findings below.
 
-**Finding — stale `reserveUSD` and drained pools**: Initial results showed all top cycles routing through pool `0x50b6...fafb`, with apparent profits of $8,000–$15,000. Investigation revealed this pool had 43,422 tokens on one side but only 0.00001 USDT on the other — effectively drained — yet its `reserveUSD` field still read $56,992 from a stale subgraph snapshot. The AMM formula computed an implied price of ~4.3 billion USDT per token, producing phantom profit for any input amount. A filter was added in `loader.rs` to reject pools where either reserve in human-readable units is below 0.01, regardless of `reserveUSD`. After filtering, profits dropped to a realistic range ($800–$2,800) and results diversified across multiple starting tokens and paths.
+**Finding 1 — stale `reserveUSD` and drained pools**: Initial results showed all top cycles routing through pool `0x50b6...fafb`, with apparent profits of $8,000–$15,000. Investigation revealed this pool had 43,422 tokens on one side but only 0.00001 USDT on the other — effectively drained — yet its `reserveUSD` field still read $56,992 from a stale subgraph snapshot. The AMM formula computed an implied price of ~4.3 billion USDT per token, producing phantom profit for any input amount. A filter was added in `loader.rs` to reject pools where either reserve in human-readable units is below 0.01, regardless of `reserveUSD`.
+
+**Finding 2 — cross-pool price inconsistency**: Adding `--anchor` support and running experiments across all five hub tokens revealed a deeper data quality issue. Token `0xd233d1f6fd...` (9 decimals) is priced at **$1.07** in the DAI/0xd233 pool but **$5.71** in the WETH/0xd233 pool — a 5.4× discrepancy. Both pools have healthy reserves on both sides and pass all filters. The difference is that the two pools were captured at different block times from the subgraph, so their prices are inconsistent. The AMM formula correctly computes a 653% round-trip profit given these reserves, but no such profit exists on a live chain. This type of phantom cannot be caught by reserve-size filters; it would require a cross-pool price consistency check (e.g. reject any token whose implied price varies more than 2× across its pools).
+
+**Finding 3 — optimizer decimal mismatch bug**: The original golden section search used `min(reserve_in across all edges)` as the upper bound. Since reserves are stored in raw units (each multiplied by its token's decimals), comparing them across different tokens is meaningless. For WETH→DAI→0xd233→WETH, the 0xd233 side has raw reserve 679,288 × 10⁹ ≈ 6.8×10¹⁴, which treated as WETH (18 decimals) = 0.00034 WETH — 58,885× below the actual optimal of ~20 WETH. This bug made WETH anchor appear to produce small realistic profits ($1,911) while stablecoin anchors surfaced $100K+ phantoms. The asymmetry was entirely caused by the mismatch, not real differences between anchors. Fixed by using only the first edge's `reserve_in` as the search bound, which is always in the starting token's own units.
 
 ### Suggested Trade Size
 
-All top cycles start in WETH. Raw optimal inputs range from ~2.7×10^16 (rank 2, ~0.027 ETH) to ~5.3×10^17 (rank 1, ~0.53 ETH). The very large raw inputs (~10^17) suggest some paths still involve pools with skewed reserves; a production system would apply per-hop reserve floor checks on each side independently.
+After the optimizer fix, optimal inputs for the top WETH cycles range from ~7.9×10¹⁸ (rank 5, ~7.9 WETH via the AMPL pool) to ~2.1×10¹⁹ (rank 1, ~21 WETH). These are all phantom opportunities, so the trade sizes are academic. In a production system the optimizer bound should also account for downstream pool depth — a cycle may be technically profitable at 20 WETH in but practically constrained by thin liquidity in intermediate pools.
 
 ---
 
@@ -128,8 +132,11 @@ The `ArbitrageValidator` contract (`contracts/src/ArbitrageValidator.sol`):
 ### How to Run
 
 ```bash
-# Part 1: Detect cycles
+# Part 1: Detect cycles (default anchor: WETH)
 cargo run --release -- data/v2pools.json
+
+# Part 1: Detect cycles with a different anchor token
+cargo run --release -- data/v2pools.json --anchor USDT
 
 # Part 2: Compile contracts
 cd contracts && bun run compile
@@ -140,6 +147,9 @@ bun run test          # Terminal 2: deploy and run 6 tests
 
 # Part 2: Validate with snapshot reserves (mock pools)
 bun run node          # Terminal 1
+or 
+anvil --steps-tracing --host 0.0.0.0 --port 8545 # require foundry
+
 bun run validate:snapshot   # Terminal 2
 
 # Part 2: Validate with live mainnet reserves (requires RPC URL)
@@ -205,3 +215,9 @@ report.md                           # This report
 5. **Tenderly free tier limits**: Deploying 19 mock pools + running validations exhausted the free-tier RPC quota. Worked around this by using a local Hardhat node for subsequent testing.
 
 6. **f64 precision vs. uint256**: The off-chain detector uses `f64` (sufficient for ranking) while the on-chain contract uses exact `uint256` arithmetic. Results matched for these cycles, but for cycles involving very large reserves (>10^15 raw units), f64's 53-bit mantissa could introduce rounding differences. A production system would use `U256` or `u128` with checked arithmetic.
+
+7. **Optimizer decimal mismatch bug (found and fixed)**: The golden section search originally used `min(reserve_in across all edges)` as the search upper bound. Because reserves are stored in raw units per each token's decimal count, this compared numbers across incompatible scales — e.g. a 9-decimal token's reserve appeared ~1 billion times smaller than an 18-decimal token's reserve. For some cycles this capped the search 50,000× below the true optimum, making certain phantom profits invisible from some anchor tokens but visible from others. Fixed by using the first edge's `reserve_in` only, which is always in the starting token's units.
+
+8. **Cross-pool price inconsistency not filtered**: The dust-reserve filter catches drained pools (near-zero reserves on one side) but not pools with healthy reserves that were snapshotted at different block times. Token `0xd233d1f6fd...` has a 5.4× price difference between its DAI pool and its WETH pool purely because of snapshot timing. Both pools pass every filter, but any cycle through them produces a phantom profit. Filtering this out without external price data would require comparing implied prices across pools for the same token and rejecting outliers.
+
+9. **Domain unfamiliarity**: I have no prior background in crypto, DeFi, or Web3. Concepts like AMM mechanics, liquidity pools, reserve ratios, and on-chain validation were entirely new. Understanding what the system was actually doing — not just implementing it — was genuinely difficult. I largely trusted the AI's explanations of the domain and verified correctness through tests and output plausibility rather than independent domain knowledge.

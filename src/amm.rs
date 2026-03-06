@@ -29,13 +29,11 @@ pub fn simulate_cycle(graph: &Graph, cycle: &Cycle, amount_in: f64) -> f64 {
 /// Find optimal input using golden section search.
 /// Returns (optimal_input, output_at_optimal).
 pub fn optimal_input(graph: &Graph, cycle: &Cycle) -> (f64, f64) {
-    // Upper bound: use a fraction of the smallest reserve_in in the cycle
-    let max_input = cycle
-        .edges
-        .iter()
-        .map(|&e| graph.edges[e].reserve_in)
-        .fold(f64::MAX, f64::min)
-        * 0.5;
+    // Upper bound: use a fraction of the first edge's reserve_in.
+    // The first edge's reserve_in is always in the starting token's own units,
+    // so it's a safe bound. Using min across all edges would mix raw reserves
+    // of different tokens with different decimals, producing a wrong cap.
+    let max_input = graph.edges[cycle.edges[0]].reserve_in * 0.3;
 
     if max_input <= 0.0 {
         return (0.0, 0.0);

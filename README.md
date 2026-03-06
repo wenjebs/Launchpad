@@ -30,9 +30,12 @@ This tool finds those cycles automatically.
 
 ```bash
 cargo run --release -- data/v2pools.json
+
+# Optional: choose the anchor token (default: WETH)
+cargo run --release -- data/v2pools.json --anchor USDT
 ```
 
-Prints a top-10 table and writes `output/top10.json`.
+Accepted anchor names: `WETH`, `USDT`, `USDC`, `DAI`, `WBTC`. Prints a top-10 table and writes `output/top10.json`.
 
 ### Part 2 — validate on-chain
 
@@ -109,16 +112,14 @@ RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY bun run validate:live
 ## Results snapshot
 
 ```
-Rank  Profit USD   Hops  Path
-1     $1,911.02    4     WETH → SUSHI → 0x90d7... → 0x6971... → WETH
-2     $1,148.01    3     WETH → 0x86fa... → 0x4d13... → WETH
-3     $839.46      3     WETH → 0xe0e4... → LINK → WETH
-4     $818.00      4     WETH → 0xe0e4... → LINK → 0x990f... → WETH
-5     $814.10      4     WETH → 0xe0e4... → LINK → UNI → WETH
+Rank  Profit USD    Hops  Path (WETH anchor)
+1     $71,805.07    3     WETH → DAI → 0xd233... → WETH
+2     $71,415.75    4     WETH → USDT → DAI → 0xd233... → WETH
+3     $71,413.31    4     WETH → USDC → DAI → 0xd233... → WETH
 ...
 ```
 
-53,104 candidate cycles found in 0.14s. All top cycles anchor at WETH (the single giant SCC covers 4,561 of 4,598 tokens). The LINK→WETH path appears repeatedly in ranks 3–10, reflecting a persistent price discrepancy in Chainlink-adjacent pools.
+53,104 candidate cycles found in ~0.13s. All top cycles route through token `0xd233d1f6fd...`, which is priced at $1.07 in one pool and $5.71 in another due to stale snapshot data — these are **phantom profits from cross-pool price inconsistency**, not real opportunities. See `src/README.md` for a full explanation and the anchor experiments table.
 
 ---
 
