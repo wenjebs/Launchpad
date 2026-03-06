@@ -1,0 +1,122 @@
+# DEX Arbitrage Detector
+
+A two-part system for finding and validating profitable arbitrage cycles on Uniswap V2.
+
+**Part 1** — Rust CLI that loads 38,141 pool snapshots, builds a token swap graph, and detects the top-10 most profitable cycles in under a second.
+
+**Part 2** — Solidity smart contract that fetches live on-chain reserves and validates whether a cycle is still profitable, with a Node.js submission script.
+
+---
+
+## How it works
+
+In AMM-based DEXes, tokens and pools form a directed graph:
+
+```
+Token A ──[Pool AB]──▶ Token B ──[Pool BC]──▶ Token C ──[Pool CA]──▶ Token A
+                                                                      ▲
+                                                              (more than you started with = profit)
+```
+
+Each edge represents a Uniswap V2 swap. If chaining swaps through a cycle returns more tokens than you put in — accounting for the 0.3% fee per hop — that's an arbitrage opportunity.
+
+This tool finds those cycles automatically.
+
+---
+
+## Quickstart
+
+### Part 1 — detect cycles
+
+```bash
+cargo run --release -- data/v2pools.json
+```
+
+Prints a top-10 table and writes `output/top10.json`.
+
+### Part 2 — validate on-chain
+
+```bash
+cd contracts
+bun install
+
+bun run node              # Terminal 1: start local Ethereum node
+bun run validate:snapshot # Terminal 2: validate using snapshot reserves
+```
+
+Or against live mainnet:
+
+```bash
+RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY bun run validate:live
+```
+
+---
+
+## Repository structure
+
+```
+├── src/                        # Rust off-chain detector
+│   ├── main.rs                 # CLI entry point
+│   ├── types.rs                # Data structures
+│   ├── loader.rs               # Parse + filter v2pools.json
+│   ├── graph.rs                # Build directed token graph
+│   ├── amm.rs                  # Uniswap V2 swap math
+│   ├── detector.rs             # Bounded DFS cycle detection
+│   └── ranker.rs               # Rank by profit, write output
+│
+├── contracts/                  # Solidity on-chain validator
+│   ├── src/
+│   │   ├── ArbitrageValidator.sol
+│   │   └── interfaces/IUniswapV2Pair.sol
+│   ├── test/
+│   │   ├── ArbitrageValidator.t.sol
+│   │   └── mocks/MockUniswapV2Pair.sol
+│   └── script/
+│       ├── compile.js          # Compile via solc
+│       ├── test.js             # Run unit tests
+│       ├── validate.js         # Validate against live reserves
+│       └── validate-snapshot.js # Validate against snapshot reserves
+│
+├── data/
+│   └── v2pools.json            # 38,141 Uniswap V2 pool snapshots
+├── output/
+│   └── top10.json              # Detection results
+├── specs/                      # Challenge spec documents
+└── report.md                   # Full writeup
+```
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Part 1 — Off-Chain Detector](src/README.md) | Graph construction, cycle detection algorithm, AMM math, results |
+| [Part 2 — On-Chain Validator](contracts/README.md) | Contract interface, data encoding, revert conditions, how to test |
+| [Full Report](report.md) | Complete writeup including AI tool usage and findings |
+
+---
+
+## Results snapshot
+
+```
+Rank  Profit USD    Optimal Input   Hops  Path
+1     $15,751.45    5 raw USDT      4     USDT → 0xd233... → LINK → UNI → USDT
+2     $10,607.63    5 raw USDT      3     USDT → 0xd233... → DAI → USDT
+3     $10,596.31    5 raw USDT      4     USDT → 0xd233... → DAI → USDC → USDT
+...
+```
+
+All top cycles route through a single mispriced pool (`0x50b6...fafb`) that has 43,422 tokens on one side and 0.00001 USDT on the other — a drained pool with stale reserve data, exactly the kind of opportunity MEV bots exploit in practice.
+
+---
+
+## Tech stack
+
+| Layer | Tech |
+|-------|------|
+| Cycle detection | Rust (no external graph library) |
+| Contract | Solidity 0.8.20 |
+| Compilation | solc via Node.js |
+| Testing | Hardhat local node + ethers.js v6 |
+| Package manager | bun |
