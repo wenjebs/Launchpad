@@ -1,0 +1,16 @@
+# Rust
+target/
+Cargo.lock
+
+# Node
+contracts/node_modules/
+contracts/.tool-versions
+
+# Solidity artifacts
+contracts/out/
+
+# Data (large file — track separately if needed)
+# data/
+
+# OS
+.DS_Store
