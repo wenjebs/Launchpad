@@ -40,8 +40,17 @@ Prints a top-10 table and writes `output/top10.json`.
 cd contracts
 bun install
 
-bun run node              # Terminal 1: start local Ethereum node
-bun run validate:snapshot # Terminal 2: validate using snapshot reserves
+# Terminal 1: start local Ethereum node (requires Foundry)
+anvil --steps-tracing --host 0.0.0.0 --port 8545
+
+# Terminal 2: validate using snapshot reserves
+bun run validate:snapshot
+```
+
+To browse transactions in a local block explorer, start Otterscan before running validation:
+```bash
+docker run -d --name otterscan -p 5100:80 -e ERIGON_URL=http://localhost:8545 otterscan/otterscan:latest
+# Open http://localhost:5100
 ```
 
 Or against live mainnet:
@@ -120,5 +129,7 @@ Rank  Profit USD   Hops  Path
 | Cycle detection | Rust (no external graph library) |
 | Contract | Solidity 0.8.20 |
 | Compilation | solc via Node.js |
-| Testing | Hardhat local node + ethers.js v6 |
+| Local node | Anvil (Foundry) with `--steps-tracing` |
+| Block explorer | Otterscan (local, Docker) at `localhost:5100` |
+| Testing | ethers.js v6 + mock Uniswap V2 pairs |
 | Package manager | bun |

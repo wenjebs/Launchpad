@@ -102,19 +102,42 @@ RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY bun run validate:live
 
 Most cycles will revert as unprofitable — the snapshot data is historical and MEV bots would have already captured any real opportunities. That's expected behaviour and confirms the contract is working correctly.
 
-## Tenderly Virtual TestNet
+## Local Block Explorer (Otterscan)
 
-To see transactions in a block explorer:
+Otterscan is a local Etherscan-style UI. It requires **Anvil** (Foundry's local node) instead of Hardhat, because Hardhat doesn't implement the `ots_*` RPC methods Otterscan needs.
 
-1. Create a Virtual TestNet at [dashboard.tenderly.co](https://dashboard.tenderly.co) (fork Ethereum Mainnet)
-2. Copy the RPC URL
-3. Run:
-
+**1. Install Foundry** (one-time):
 ```bash
-RPC_URL=https://virtual.mainnet.rpc.tenderly.co/YOUR_ID bun run validate:snapshot
+curl -L https://foundry.paradigm.xyz | bash && foundryup
 ```
 
-All contract deployments and validation calls appear in the Tenderly explorer with full call traces and decoded inputs.
+**2. Start Anvil** instead of `bun run node`:
+```bash
+anvil --steps-tracing --host 0.0.0.0 --port 8545
+```
+
+**3. Start Otterscan**:
+```bash
+docker run -d --name otterscan -p 5100:80 -e ERIGON_URL=http://localhost:8545 otterscan/otterscan:latest
+```
+
+**4. Run validation**:
+```bash
+bun run validate:snapshot
+```
+
+Open `http://localhost:5100` — browse blocks and transactions, search by contract address, inspect decoded call traces.
+
+> To see all transactions: click the Otterscan logo → "Latest block" to open the block list.
+
+### Using Hardhat instead
+
+If you don't have Foundry, use `bun run node` (Hardhat) as the local node. Otterscan won't work with it, but all validation scripts still run fine:
+
+```bash
+bun run node              # Terminal 1
+bun run validate:snapshot # Terminal 2
+```
 
 ## File structure
 
