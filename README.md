@@ -100,14 +100,16 @@ RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY bun run validate:live
 ## Results snapshot
 
 ```
-Rank  Profit USD    Optimal Input   Hops  Path
-1     $15,751.45    5 raw USDT      4     USDT → 0xd233... → LINK → UNI → USDT
-2     $10,607.63    5 raw USDT      3     USDT → 0xd233... → DAI → USDT
-3     $10,596.31    5 raw USDT      4     USDT → 0xd233... → DAI → USDC → USDT
+Rank  Profit USD   Hops  Path
+1     $1,911.02    4     WETH → SUSHI → 0x90d7... → 0x6971... → WETH
+2     $1,148.01    3     WETH → 0x86fa... → 0x4d13... → WETH
+3     $839.46      3     WETH → 0xe0e4... → LINK → WETH
+4     $818.00      4     WETH → 0xe0e4... → LINK → 0x990f... → WETH
+5     $814.10      4     WETH → 0xe0e4... → LINK → UNI → WETH
 ...
 ```
 
-All top cycles route through a single mispriced pool (`0x50b6...fafb`) that has 43,422 tokens on one side and 0.00001 USDT on the other — a drained pool with stale reserve data, exactly the kind of opportunity MEV bots exploit in practice.
+53,104 candidate cycles found in 0.14s. All top cycles anchor at WETH (the single giant SCC covers 4,561 of 4,598 tokens). The LINK→WETH path appears repeatedly in ranks 3–10, reflecting a persistent price discrepancy in Chainlink-adjacent pools.
 
 ---
 

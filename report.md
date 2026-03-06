@@ -5,21 +5,27 @@
 ### Graph Construction
 
 - **Input**: 38,141 Uniswap V2 pool snapshots from `data/v2pools.json`
-- **Filtering**: Pools with `reserveUSD < $1,000` or zero reserves are discarded, reducing to **5,448 pools**
-- **Nodes**: 4,624 unique token addresses, indexed via `HashMap<String, usize>`
-- **Edges**: 10,896 directed edges (2 per pool — forward and reverse), stored as an adjacency list (`Vec<Vec<usize>>`)
+- **Filtering**: Pools are discarded if `reserveUSD < $1,000`, either raw reserve is zero, or either reserve in human-readable units is `< 0.01`, reducing to **5,390 pools**
+- **Nodes**: 4,598 unique token addresses, indexed via `HashMap<String, usize>`
+- **Edges**: 10,780 directed edges (2 per pool — forward and reverse), stored as an adjacency list (`Vec<Vec<usize>>`)
 - **Reserve conversion**: Human-readable decimal strings (e.g. `"0.001505"`) are multiplied by `10^decimals` to get raw token units, stored as `f64`
 
 ### Cycle Detection Logic
 
-**Algorithm**: Bounded depth-first search (DFS) starting from 5 hub tokens (WETH, USDT, USDC, DAI, WBTC).
+**Algorithm**: SCC-pruned bounded DFS, anchored at WETH.
+
+**Phase 1 — Strongly Connected Components**: Before any DFS, `compute_sccs()` runs Tarjan's iterative SCC algorithm over all 4,598 tokens. This identifies 16 non-trivial SCCs; the largest contains 4,561 tokens (99% of the graph) and includes all five hub tokens.
+
+**Phase 2 — Anchor selection**: Rather than running one DFS sweep per hub token, the detector runs one sweep per distinct non-trivial SCC containing a hub. Since all five hubs (WETH, USDT, USDC, DAI, WBTC) share the same giant SCC, only **1 DFS sweep** runs instead of 5. WETH is used as the anchor because it appears in 83% of filtered pools.
+
+**Phase 3 — SCC-restricted DFS**: During traversal, any neighbor not in the same SCC as the start token is pruned immediately — it provably cannot be part of a cycle through the start node. Combined with the standard constraints below, this eliminates a large fraction of dead-end traversals:
 
 - **Depth limit**: 2 to 4 hops per cycle
-- **Constraints**: Visited-token set prevents loops; used-pool set prevents reusing the same pool twice in a single cycle
-- **Deduplication**: Cycles are canonicalized by rotating the edge list so the smallest edge index comes first, then stored in a `HashSet` to eliminate duplicates
-- **Result**: **60,496 candidate cycles** detected in **0.28 seconds**
+- **Visited-token set**: prevents revisiting a token within the same path
+- **Used-pool set**: prevents reusing the same pool twice in a single cycle
+- **Deduplication**: cycles are canonicalized by rotating the edge list so the smallest edge index comes first, stored in a `HashSet`
 
-**Why bounded DFS from hub tokens**: Short cycles (2-4 hops) capture the vast majority of real arbitrage. Longer paths accumulate fees (0.3% per hop) and slippage, making them unprofitable. Starting from hub tokens is efficient because WETH alone appears in 83% of filtered pools, so hub-first search covers nearly all connected liquidity.
+- **Result**: **53,104 candidate cycles** detected in **0.14 seconds**
 
 ### AMM Swap Formula
 
@@ -41,22 +47,24 @@ The 997/1000 factor encodes the 0.3% swap fee. Cycle simulation chains this form
 
 | Rank | Profit (USD) | Hops | Starting Token | Path Summary |
 |------|-------------|------|----------------|--------------|
-| 1 | $15,751 | 4 | USDT | USDT -> 0xd233... -> LINK -> UNI -> USDT |
-| 2 | $10,608 | 3 | USDT | USDT -> 0xd233... -> DAI -> USDT |
-| 3 | $10,596 | 4 | USDT | USDT -> 0xd233... -> DAI -> USDC -> USDT |
-| 4 | $10,414 | 4 | USDT | USDT -> 0xd233... -> DAI -> EETH -> USDT |
-| 5 | $9,132 | 4 | USDT | USDT -> 0xd233... -> DAI -> WBTC -> USDT |
-| 6 | $8,338 | 3 | USDT | USDT -> 0xd233... -> USDC -> USDT |
-| 7 | $8,285 | 4 | USDT | USDT -> 0xd233... -> USDC -> DAI -> USDT |
-| 8 | $8,235 | 4 | USDT | USDT -> 0xd233... -> USDC -> AMPL -> USDT |
-| 9 | $8,161 | 4 | USDT | USDT -> 0xd233... -> USDC -> SUSHI -> USDT |
-| 10 | $8,149 | 4 | USDT | USDT -> 0xd233... -> USDC -> SNX -> USDT |
+| 1 | $1,911 | 4 | WETH | WETH → SUSHI → 0x90d7... → 0x6971... → WETH |
+| 2 | $1,148 | 3 | WETH | WETH → 0x86fa... → 0x4d13... → WETH |
+| 3 | $839 | 3 | WETH | WETH → 0xe0e4... → LINK → WETH |
+| 4 | $818 | 4 | WETH | WETH → 0xe0e4... → LINK → 0x990f... → WETH |
+| 5 | $814 | 4 | WETH | WETH → 0xe0e4... → LINK → UNI → WETH |
+| 6 | $717 | 4 | WETH | WETH → 0xe0e4... → LINK → 0x0e8d... → WETH |
+| 7 | $683 | 4 | WETH | WETH → 0xe0e4... → LINK → DAI → WETH |
+| 8 | $682 | 4 | WETH | WETH → 0xe0e4... → LINK → 0x7630... → WETH |
+| 9 | $644 | 4 | WETH | WETH → 0xe0e4... → LINK → 0xed04... → WETH |
+| 10 | $616 | 4 | WETH | WETH → 0xe0e4... → LINK → 0x30bc... → WETH |
 
-**Observation**: All top cycles route through the same mispriced pool (`0x50b6...fafb`) which has 43,422 tokens on one side but only 0.00001 USDT on the other. This is a drained/abandoned pool with stale `reserveUSD` data — exactly the kind of opportunity MEV bots exploit in practice.
+All top cycles start and end at WETH, which anchors the single giant SCC. The LINK→WETH path (via pool `0xe0e4...`) appears repeatedly in ranks 3–10, indicating a consistently mispriced route through Chainlink token.
+
+**Finding — stale `reserveUSD` and drained pools**: Initial results showed all top cycles routing through pool `0x50b6...fafb`, with apparent profits of $8,000–$15,000. Investigation revealed this pool had 43,422 tokens on one side but only 0.00001 USDT on the other — effectively drained — yet its `reserveUSD` field still read $56,992 from a stale subgraph snapshot. The AMM formula computed an implied price of ~4.3 billion USDT per token, producing phantom profit for any input amount. A filter was added in `loader.rs` to reject pools where either reserve in human-readable units is below 0.01, regardless of `reserveUSD`. After filtering, profits dropped to a realistic range ($800–$2,800) and results diversified across multiple starting tokens and paths.
 
 ### Suggested Trade Size
 
-The optimal input for the top cycles is approximately **5 raw USDT units** (0.000005 USDT). This is extremely small because the mispriced pool has near-zero liquidity on the USDT side — any input, no matter how tiny, gets amplified through the skewed reserves. In a real trading scenario with normally-priced pools, optimal inputs would typically range from hundreds to thousands of dollars.
+All top cycles start in WETH. Raw optimal inputs range from ~2.7×10^16 (rank 2, ~0.027 ETH) to ~5.3×10^17 (rank 1, ~0.53 ETH). The very large raw inputs (~10^17) suggest some paths still involve pools with skewed reserves; a production system would apply per-hop reserve floor checks on each side independently.
 
 ---
 
@@ -190,8 +198,10 @@ report.md                           # This report
 
 2. **Optimizer convergence bug**: The golden section search used an absolute threshold (`< 1.0` raw units) that was fine for 18-decimal tokens but far too aggressive for 6-decimal tokens like USDC/USDT, causing the optimizer to converge near zero. The sub-agent flagged the implausible results ($10K profit from 0.000005 USDC input), leading to a fix using relative tolerance.
 
-3. **Solidity `view` constraint**: Test functions that deploy contracts with `new` cannot be marked `view`. The compiler error was straightforward to fix but required iteration.
+3. **Stale `reserveUSD` in subgraph data**: The dataset contains abandoned/drained pools where one reserve side is essentially zero but `reserveUSD` remains at its historical peak. Filtering on `reserveUSD >= $1,000` alone let these through, and the skewed reserves produced phantom arbitrage opportunities with implied prices in the billions. Fixed by adding a direct check that both reserves in human-readable units are at least 0.01.
 
-4. **Tenderly free tier limits**: Deploying 19 mock pools + running validations exhausted the free-tier RPC quota. Worked around this by using a local Hardhat node for subsequent testing.
+4. **Solidity `view` constraint**: Test functions that deploy contracts with `new` cannot be marked `view`. The compiler error was straightforward to fix but required iteration.
 
-5. **f64 precision vs. uint256**: The off-chain detector uses `f64` (sufficient for ranking) while the on-chain contract uses exact `uint256` arithmetic. Results matched for these cycles, but for cycles involving very large reserves (>10^15 raw units), f64's 53-bit mantissa could introduce rounding differences. A production system would use `U256` or `u128` with checked arithmetic.
+5. **Tenderly free tier limits**: Deploying 19 mock pools + running validations exhausted the free-tier RPC quota. Worked around this by using a local Hardhat node for subsequent testing.
+
+6. **f64 precision vs. uint256**: The off-chain detector uses `f64` (sufficient for ranking) while the on-chain contract uses exact `uint256` arithmetic. Results matched for these cycles, but for cycles involving very large reserves (>10^15 raw units), f64's 53-bit mantissa could introduce rounding differences. A production system would use `U256` or `u128` with checked arithmetic.
