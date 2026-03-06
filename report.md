@@ -131,6 +131,10 @@ The `ArbitrageValidator` contract (`contracts/src/ArbitrageValidator.sol`):
 
 ### How to Run
 
+
+https://github.com/user-attachments/assets/0512c3d2-fd70-4bbf-a13a-9ad2aab12182
+
+
 ```bash
 # Part 1: Detect cycles (default anchor: WETH)
 cargo run --release -- data/v2pools.json
