@@ -109,20 +109,6 @@ RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY bun run validate:live
 
 ---
 
-## Results snapshot
-
-```
-Rank  Profit USD    Hops  Path (WETH anchor)
-1     $71,805.07    3     WETH → DAI → 0xd233... → WETH
-2     $71,415.75    4     WETH → USDT → DAI → 0xd233... → WETH
-3     $71,413.31    4     WETH → USDC → DAI → 0xd233... → WETH
-...
-```
-
-53,104 candidate cycles found in ~0.13s. All top cycles route through token `0xd233d1f6fd...`, which is priced at $1.07 in one pool and $5.71 in another due to stale snapshot data — these are **phantom profits from cross-pool price inconsistency**, not real opportunities. See `src/README.md` for a full explanation and the anchor experiments table.
-
----
-
 ## Tech stack
 
 | Layer | Tech |
