@@ -1,0 +1,21 @@
+{
+  "name": "arb-validator-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "node script/compile.js",
+    "test": "node script/test.js",
+    "validate": "node script/validate.js",
+    "node": "lsof -ti:8545 | xargs kill -9 2>/dev/null; npx hardhat node --port 8545",
+    "validate:snapshot": "node script/validate-snapshot.js",
+    "validate:live": "node script/validate.js"
+  },
+  "dependencies": {
+    "ethers": "^6.13.0",
+    "solc": "0.8.28"
+  },
+  "devDependencies": {
+    "hardhat": "^3.1.11"
+  }
+}
